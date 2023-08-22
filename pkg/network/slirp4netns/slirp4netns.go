@@ -89,7 +89,7 @@ func DetectFeatures(binary string) (*Features, error) {
 // NewParentDriver instantiates new parent driver.
 // Requires slirp4netns v0.4.0 or later.
 func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, apiSocketPath string,
-	enableSandbox, enableSeccomp, enableIPv6 bool) (network.ParentDriver, error) {
+	enableSandbox, enableSeccomp, enableIPv6 bool, outboundAddr string, outboundAddr6 string) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty slirp4netns binary")
 	}
