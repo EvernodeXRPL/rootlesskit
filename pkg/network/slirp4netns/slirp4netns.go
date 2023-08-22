@@ -39,6 +39,10 @@ type Features struct {
 	SupportsEnableSeccomp bool
 	// KernelSupportsSeccomp whether the kernel supports slirp4netns --enable-seccomp
 	KernelSupportsEnableSeccomp bool
+	// SupportsOutboundAddr --outbound-addr (v1.1.0)
+	SupportsOutboundAddr bool
+	// SupportsOutboundAddr6 --outbound-addr6 (v1.1.0)
+	SupportsOutboundAddr6 bool
 }
 
 func DetectFeatures(binary string) (*Features, error) {
@@ -76,6 +80,8 @@ func DetectFeatures(binary string) (*Features, error) {
 		SupportsEnableSandbox:       strings.Contains(s, "--enable-sandbox"),
 		SupportsEnableSeccomp:       strings.Contains(s, "--enable-seccomp"),
 		KernelSupportsEnableSeccomp: kernelSupportsEnableSeccomp,
+		SupportsOutboundAddr:        strings.Contains(s, "--outbound-addr"),
+		SupportsOutboundAddr6:       strings.Contains(s, "--outbound-addr6"),
 	}
 	return &f, nil
 }
@@ -123,6 +129,12 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 	if enableSeccomp && !features.KernelSupportsEnableSeccomp {
 		return nil, errors.New("kernel does not support seccomp")
 	}
+	if outboundAddr != "" && !features.SupportsOutboundAddr {
+		return nil, errors.New("this version of slirp4netns does not support --outbound-addr")
+	}
+	if outboundAddr6 != "" && !features.SupportsOutboundAddr6 {
+		return nil, errors.New("this version of slirp4netns does not support --outbound-addr6")
+	}
 
 	return &parentDriver{
 		logWriter:           logWriter,
@@ -135,6 +147,8 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		enableSeccomp:       enableSeccomp,
 		enableIPv6:          enableIPv6,
 		ifname:              ifname,
+		outboundAddr:		 outboundAddr,
+		outboundAddr6:		 outboundAddr6,
 	}, nil
 }
 
@@ -149,6 +163,8 @@ type parentDriver struct {
 	enableSeccomp       bool
 	enableIPv6          bool
 	ifname              string
+	outboundAddr        string
+	outboundAddr6       string
 	infoMu              sync.RWMutex
 	info                func() *api.NetworkDriverInfo
 }
@@ -203,6 +219,12 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	if d.enableIPv6 {
 		opts = append(opts, "--enable-ipv6")
+	}
+	if d.outboundAddr != "" {
+		opts = append(opts, "--outbound-addr", d.outboundAddr)
+	}
+	if d.outboundAddr6 != "" {
+		opts = append(opts, "--outbound-addr6", d.outboundAddr6)
 	}
 	cmd := exec.Command(d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	// FIXME: Stdout doen't seem captured
